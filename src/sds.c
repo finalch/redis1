@@ -217,9 +217,13 @@ void sdsupdatelen(sds s) {
  * However all the existing buffer is not discarded but set as free space
  * so that next append operations will not require allocations up to the
  * number of bytes previously available.
- * 清空sds字符串
- * 但是不会释放sds内存空间
  * */
+/**
+ * 清空sds
+ * 将sds头部的len这是为0, 并将buf中第一个字节设置为\0
+ * 不会立即回收内存
+ * @param s sds
+ */
 void sdsclear(sds s) {
     sdssetlen(s, 0);
     s[0] = '\0';
@@ -233,6 +237,12 @@ void sdsclear(sds s) {
  * by sdslen(), but only the free buffer space we have.
  * sds扩容
  * */
+/**
+ * sds 扩容
+ * @param s sds字符串
+ * @param addlen 需要扩容的大小
+ * @return
+ */
 sds sdsMakeRoomFor(sds s, size_t addlen) {
     void *sh, *newsh;
     // s可用空间
@@ -249,7 +259,7 @@ sds sdsMakeRoomFor(sds s, size_t addlen) {
     sh = (char *) s - sdsHdrSize(oldtype);
     // 新长度
     newlen = (len + addlen);
-    // 新长度小于1k, 按新长度的2倍扩容
+    // 新长度小于1M, 按新长度的2倍扩容
     if (newlen < SDS_MAX_PREALLOC)
         newlen *= 2;
     else
@@ -298,8 +308,12 @@ sds sdsMakeRoomFor(sds s, size_t addlen) {
  *
  * After the call, the passed sds string is no longer valid and all the
  * references must be substituted with the new pointer returned by the call.
- * 释放掉sds中buf部分的空余空间
  * */
+/**
+ * 释放掉sds中buf部分的空余空间
+ * @param s sds字符串
+ * @return sds字符串
+ */
 sds sdsRemoveFreeSpace(sds s) {
     void *sh, *newsh;
     char type, oldtype = s[-1] & SDS_TYPE_MASK;
