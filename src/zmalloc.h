@@ -35,6 +35,7 @@
 #define __xstr(s) __str(s)
 #define __str(s) #s
 
+// tcmalloc内存分配器
 #if defined(USE_TCMALLOC)
 #define ZMALLOC_LIB ("tcmalloc-" __xstr(TC_VERSION_MAJOR) "." __xstr(TC_VERSION_MINOR))
 #include <google/tcmalloc.h>
@@ -44,7 +45,7 @@
 #else
 #error "Newer version of tcmalloc required"
 #endif
-
+// jemalloc内存分配器
 #elif defined(USE_JEMALLOC)
 #define ZMALLOC_LIB ("jemalloc-" __xstr(JEMALLOC_VERSION_MAJOR) "." __xstr(JEMALLOC_VERSION_MINOR) "." __xstr(JEMALLOC_VERSION_BUGFIX))
 #include <jemalloc/jemalloc.h>
@@ -54,13 +55,13 @@
 #else
 #error "Newer version of jemalloc required"
 #endif
-
+// apple 标准库中的内存分配器
 #elif defined(__APPLE__)
 #include <malloc/malloc.h>
 #define HAVE_MALLOC_SIZE 1
 #define zmalloc_size(p) malloc_size(p)
 #endif
-
+// tcmalloc和jemalloc会定义amalloc_lib，除此之外都不会定义amalloc_lib，此时使用标准库
 #ifndef ZMALLOC_LIB
 #define ZMALLOC_LIB "libc"
 #ifdef __GLIBC__

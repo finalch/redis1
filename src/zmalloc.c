@@ -48,6 +48,7 @@ void zlibc_free(void *ptr) {
 
 #ifdef HAVE_MALLOC_SIZE
 #define PREFIX_SIZE (0)
+// 如果使用的是标准的内存分配器, 则将PREFIX_SIZE设置为size_t大小或者long long大小
 #else
 #if defined(__sun) || defined(__sparc) || defined(__sparc__)
 #define PREFIX_SIZE (sizeof(long long))
@@ -88,7 +89,7 @@ pthread_mutex_t used_memory_mutex = PTHREAD_MUTEX_INITIALIZER;
 
 static void zmalloc_default_oom(size_t size) {
     fprintf(stderr, "zmalloc: Out of memory trying to allocate %zu bytes\n",
-        size);
+            size);
     fflush(stderr);
     abort();
 }
@@ -96,10 +97,11 @@ static void zmalloc_default_oom(size_t size) {
 static void (*zmalloc_oom_handler)(size_t) = zmalloc_default_oom;
 
 void *zmalloc(size_t size) {
-    void *ptr = malloc(size+PREFIX_SIZE);
+    void *ptr = malloc(size + PREFIX_SIZE);
 
     if (!ptr) zmalloc_oom_handler(size);
 #ifdef HAVE_MALLOC_SIZE
+    // zmalloc_size(p) p所指空间的大小
     update_zmalloc_stat_alloc(zmalloc_size(ptr));
     return ptr;
 #else
@@ -128,7 +130,7 @@ void zfree_no_tcache(void *ptr) {
 #endif
 
 void *zcalloc(size_t size) {
-    void *ptr = calloc(1, size+PREFIX_SIZE);
+    void *ptr = calloc(1, size + PREFIX_SIZE);
 
     if (!ptr) zmalloc_oom_handler(size);
 #ifdef HAVE_MALLOC_SIZE
@@ -141,6 +143,12 @@ void *zcalloc(size_t size) {
 #endif
 }
 
+/**
+ * ptr指向的空间进行内存重分配
+ * @param ptr 原空间
+ * @param size 新空间大小
+ * @return
+ */
 void *zrealloc(void *ptr, size_t size) {
 #ifndef HAVE_MALLOC_SIZE
     void *realptr;
@@ -150,11 +158,15 @@ void *zrealloc(void *ptr, size_t size) {
 
     if (ptr == NULL) return zmalloc(size);
 #ifdef HAVE_MALLOC_SIZE
+    // 原空间大小
     oldsize = zmalloc_size(ptr);
-    newptr = realloc(ptr,size);
+    // 重分配
+    // newptr指向了新空间，并且ptr的内容会被复制到新空间
+    newptr = realloc(ptr, size);
     if (!newptr) zmalloc_oom_handler(size);
-
+    // 释放原空间
     update_zmalloc_stat_free(oldsize);
+    // 记录内存使用的情况
     update_zmalloc_stat_alloc(zmalloc_size(newptr));
     return newptr;
 #else
@@ -206,16 +218,16 @@ void zfree(void *ptr) {
 }
 
 char *zstrdup(const char *s) {
-    size_t l = strlen(s)+1;
+    size_t l = strlen(s) + 1;
     char *p = zmalloc(l);
 
-    memcpy(p,s,l);
+    memcpy(p, s, l);
     return p;
 }
 
 size_t zmalloc_used_memory(void) {
     size_t um;
-    atomicGet(used_memory,um);
+    atomicGet(used_memory, um);
     return um;
 }
 
@@ -271,6 +283,7 @@ size_t zmalloc_get_rss(void) {
     return rss;
 }
 #elif defined(HAVE_TASKINFO)
+
 #include <unistd.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -286,10 +299,11 @@ size_t zmalloc_get_rss(void) {
 
     if (task_for_pid(current_task(), getpid(), &task) != KERN_SUCCESS)
         return 0;
-    task_info(task, TASK_BASIC_INFO, (task_info_t)&t_info, &t_info_count);
+    task_info(task, TASK_BASIC_INFO, (task_info_t) &t_info, &t_info_count);
 
     return t_info.resident_size;
 }
+
 #else
 size_t zmalloc_get_rss(void) {
     /* If we can't get the RSS in an OS-specific way for this system just
@@ -331,12 +345,14 @@ void set_jemalloc_bg_thread(int enable) {
     je_mallctl("background_thread", NULL, 0, &val, 1);
 }
 #else
+
 int zmalloc_get_allocator_info(size_t *allocated,
                                size_t *active,
                                size_t *resident) {
     *allocated = *resident = *active = 0;
     return 1;
 }
+
 #endif
 
 /* Get the sum of the specified field (converted form kb to bytes) in
@@ -378,15 +394,17 @@ size_t zmalloc_get_smap_bytes_by_field(char *field, long pid) {
     return bytes;
 }
 #else
+
 size_t zmalloc_get_smap_bytes_by_field(char *field, long pid) {
     ((void) field);
     ((void) pid);
     return 0;
 }
+
 #endif
 
 size_t zmalloc_get_private_dirty(long pid) {
-    return zmalloc_get_smap_bytes_by_field("Private_Dirty:",pid);
+    return zmalloc_get_smap_bytes_by_field("Private_Dirty:", pid);
 }
 
 /* Returns the size of physical memory (RAM) in bytes.
@@ -415,8 +433,8 @@ size_t zmalloc_get_memory_size(void) {
 #endif
     int64_t size = 0;               /* 64-bit */
     size_t len = sizeof(size);
-    if (sysctl( mib, 2, &size, &len, NULL, 0) == 0)
-        return (size_t)size;
+    if (sysctl(mib, 2, &size, &len, NULL, 0) == 0)
+        return (size_t) size;
     return 0L;          /* Failed? */
 
 #elif defined(_SC_PHYS_PAGES) && defined(_SC_PAGESIZE)
