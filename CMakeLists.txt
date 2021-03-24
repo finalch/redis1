@@ -96,7 +96,6 @@ set(SRC_CLI
         src/siphash.c
         )
 
-
 set(EXECUTABLE_OUTPUT_PATH src)
 link_directories(deps/linenoise/ deps/lua/src deps/hiredis)
 
@@ -125,3 +124,9 @@ target_link_libraries(redis-cli
         PRIVATE linenoise
         PRIVATE hiredis
         )
+
+set(SRC_ZIPLIST
+        src/ziplist.c
+        src/ziplisttest.c
+        )
+add_executable(ziplisttest ${SRC_ZIPLIST})

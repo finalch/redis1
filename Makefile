@@ -131,6 +131,19 @@ depend:
 .PHONY : depend
 
 #=============================================================================
+# Target rules for targets named ziplisttest
+
+# Build rule for target.
+ziplisttest: cmake_check_build_system
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 ziplisttest
+.PHONY : ziplisttest
+
+# fast build rule for target.
+ziplisttest/fast:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/ziplisttest.dir/build.make CMakeFiles/ziplisttest.dir/build
+.PHONY : ziplisttest/fast
+
+#=============================================================================
 # Target rules for targets named redis-cli
 
 # Build rule for target.
@@ -2143,6 +2156,7 @@ src/ziplist.o: src/ziplist.c.o
 
 # target to build an object file
 src/ziplist.c.o:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/ziplisttest.dir/build.make CMakeFiles/ziplisttest.dir/src/ziplist.c.o
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/redis-server.dir/build.make CMakeFiles/redis-server.dir/src/ziplist.c.o
 .PHONY : src/ziplist.c.o
 
@@ -2152,6 +2166,7 @@ src/ziplist.i: src/ziplist.c.i
 
 # target to preprocess a source file
 src/ziplist.c.i:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/ziplisttest.dir/build.make CMakeFiles/ziplisttest.dir/src/ziplist.c.i
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/redis-server.dir/build.make CMakeFiles/redis-server.dir/src/ziplist.c.i
 .PHONY : src/ziplist.c.i
 
@@ -2161,8 +2176,36 @@ src/ziplist.s: src/ziplist.c.s
 
 # target to generate assembly for a file
 src/ziplist.c.s:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/ziplisttest.dir/build.make CMakeFiles/ziplisttest.dir/src/ziplist.c.s
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/redis-server.dir/build.make CMakeFiles/redis-server.dir/src/ziplist.c.s
 .PHONY : src/ziplist.c.s
+
+src/ziplisttest.o: src/ziplisttest.c.o
+
+.PHONY : src/ziplisttest.o
+
+# target to build an object file
+src/ziplisttest.c.o:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/ziplisttest.dir/build.make CMakeFiles/ziplisttest.dir/src/ziplisttest.c.o
+.PHONY : src/ziplisttest.c.o
+
+src/ziplisttest.i: src/ziplisttest.c.i
+
+.PHONY : src/ziplisttest.i
+
+# target to preprocess a source file
+src/ziplisttest.c.i:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/ziplisttest.dir/build.make CMakeFiles/ziplisttest.dir/src/ziplisttest.c.i
+.PHONY : src/ziplisttest.c.i
+
+src/ziplisttest.s: src/ziplisttest.c.s
+
+.PHONY : src/ziplisttest.s
+
+# target to generate assembly for a file
+src/ziplisttest.c.s:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/ziplisttest.dir/build.make CMakeFiles/ziplisttest.dir/src/ziplisttest.c.s
+.PHONY : src/ziplisttest.c.s
 
 src/zipmap.o: src/zipmap.c.o
 
@@ -2238,6 +2281,7 @@ help:
 	@echo "... redis-cli"
 	@echo "... redis-server"
 	@echo "... testmodule"
+	@echo "... ziplisttest"
 	@echo "... src/adlist.o"
 	@echo "... src/adlist.i"
 	@echo "... src/adlist.s"
@@ -2448,6 +2492,9 @@ help:
 	@echo "... src/ziplist.o"
 	@echo "... src/ziplist.i"
 	@echo "... src/ziplist.s"
+	@echo "... src/ziplisttest.o"
+	@echo "... src/ziplisttest.i"
+	@echo "... src/ziplisttest.s"
 	@echo "... src/zipmap.o"
 	@echo "... src/zipmap.i"
 	@echo "... src/zipmap.s"
