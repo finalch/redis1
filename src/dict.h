@@ -43,7 +43,9 @@
 
 /* Unused arguments generate annoying warnings... */
 #define DICT_NOTUSED(V) ((void) V)
-
+/**
+ * hash表节点
+ */
 typedef struct dictEntry {
     void *key;
     union {
@@ -54,29 +56,32 @@ typedef struct dictEntry {
     } v;
     struct dictEntry *next;
 } dictEntry;
-
+// Hash表类型, 其实就是自定义了一些hash表的特性
 typedef struct dictType {
-    uint64_t (*hashFunction)(const void *key);
-    void *(*keyDup)(void *privdata, const void *key);
-    void *(*valDup)(void *privdata, const void *obj);
-    int (*keyCompare)(void *privdata, const void *key1, const void *key2);
-    void (*keyDestructor)(void *privdata, void *key);
-    void (*valDestructor)(void *privdata, void *obj);
+    uint64_t (*hashFunction)(const void *key);  // hash算法
+    void *(*keyDup)(void *privdata, const void *key); // key复制算法
+    void *(*valDup)(void *privdata, const void *obj); // value复制算法
+    int (*keyCompare)(void *privdata, const void *key1, const void *key2); // key比较算法
+    void (*keyDestructor)(void *privdata, void *key); // key destroy算法
+    void (*valDestructor)(void *privdata, void *obj); // value destroy算法
 } dictType;
 
 /* This is our hash table structure. Every dictionary has two of this as we
  * implement incremental rehashing, for the old to the new table. */
+/**
+ * hash table
+ */
 typedef struct dictht {
-    dictEntry **table;
-    unsigned long size;
+    dictEntry **table;  // hash table表 链表结构
+    unsigned long size; // hash table表大小
     unsigned long sizemask;
-    unsigned long used;
+    unsigned long used; // hast table表中容量
 } dictht;
-
+/*hash 表*/
 typedef struct dict {
     dictType *type;
     void *privdata;
-    dictht ht[2];
+    dictht ht[2];  // 两个hash talbe
     long rehashidx; /* rehashing not in progress if rehashidx == -1 */
     unsigned long iterators; /* number of iterators currently running */
 } dict;

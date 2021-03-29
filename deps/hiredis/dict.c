@@ -42,8 +42,11 @@
 /* -------------------------- private prototypes ---------------------------- */
 
 static int _dictExpandIfNeeded(dict *ht);
+
 static unsigned long _dictNextPower(unsigned long size);
+
 static int _dictKeyIndex(dict *ht, const void *key);
+
 static int _dictInit(dict *ht, dictType *type, void *privDataPtr);
 
 /* -------------------------- hash functions -------------------------------- */
@@ -72,7 +75,7 @@ static void _dictReset(dict *ht) {
 /* Create a new hash table */
 static dict *dictCreate(dictType *type, void *privDataPtr) {
     dict *ht = malloc(sizeof(*ht));
-    _dictInit(ht,type,privDataPtr);
+    _dictInit(ht, type, privDataPtr);
     return ht;
 }
 
@@ -87,6 +90,7 @@ static int _dictInit(dict *ht, dictType *type, void *privDataPtr) {
 /* Expand or create the hashtable */
 static int dictExpand(dict *ht, unsigned long size) {
     dict n; /* the new hashtable */
+    // size -> 最接近的2的幂次
     unsigned long realsize = _dictNextPower(size), i;
 
     /* the size is invalid if it is smaller than the number of
@@ -96,8 +100,8 @@ static int dictExpand(dict *ht, unsigned long size) {
 
     _dictInit(&n, ht->type, ht->privdata);
     n.size = realsize;
-    n.sizemask = realsize-1;
-    n.table = calloc(realsize,sizeof(dictEntry*));
+    n.sizemask = realsize - 1;
+    n.table = calloc(realsize, sizeof(dictEntry *));
 
     /* Copy all the elements from the old to the new table:
      * note that if the old hash table is empty ht->size is zero,
@@ -110,7 +114,7 @@ static int dictExpand(dict *ht, unsigned long size) {
 
         /* For each hash entry on this slot... */
         he = ht->table[i];
-        while(he) {
+        while (he) {
             unsigned int h;
 
             nextHe = he->next;
@@ -132,6 +136,13 @@ static int dictExpand(dict *ht, unsigned long size) {
 }
 
 /* Add an element to the target hash table */
+/**
+ * 在hash表中增加一个键值对
+ * @param ht hash表
+ * @param key key
+ * @param val val
+ * @return 0 成功 1 失败
+ */
 static int dictAdd(dict *ht, void *key, void *val) {
     int index;
     dictEntry *entry;
@@ -189,16 +200,16 @@ static int dictDelete(dict *ht, const void *key) {
     de = ht->table[h];
 
     prevde = NULL;
-    while(de) {
-        if (dictCompareHashKeys(ht,key,de->key)) {
+    while (de) {
+        if (dictCompareHashKeys(ht, key, de->key)) {
             /* Unlink the element from the list */
             if (prevde)
                 prevde->next = de->next;
             else
                 ht->table[h] = de->next;
 
-            dictFreeEntryKey(ht,de);
-            dictFreeEntryVal(ht,de);
+            dictFreeEntryKey(ht, de);
+            dictFreeEntryVal(ht, de);
             free(de);
             ht->used--;
             return DICT_OK;
@@ -218,7 +229,7 @@ static int _dictClear(dict *ht) {
         dictEntry *he, *nextHe;
 
         if ((he = ht->table[i]) == NULL) continue;
-        while(he) {
+        while (he) {
             nextHe = he->next;
             dictFreeEntryKey(ht, he);
             dictFreeEntryVal(ht, he);
@@ -247,7 +258,7 @@ static dictEntry *dictFind(dict *ht, const void *key) {
     if (ht->size == 0) return NULL;
     h = dictHashKey(ht, key) & ht->sizemask;
     he = ht->table[h];
-    while(he) {
+    while (he) {
         if (dictCompareHashKeys(ht, key, he->key))
             return he;
         he = he->next;
@@ -270,7 +281,8 @@ static dictEntry *dictNext(dictIterator *iter) {
         if (iter->entry == NULL) {
             iter->index++;
             if (iter->index >=
-                    (signed)iter->ht->size) break;
+                (signed) iter->ht->size)
+                break;
             iter->entry = iter->ht->table[iter->index];
         } else {
             iter->entry = iter->nextEntry;
@@ -291,14 +303,16 @@ static void dictReleaseIterator(dictIterator *iter) {
 
 /* ------------------------- private functions ------------------------------ */
 
-/* Expand the hash table if needed */
+/* Expand the hash table if needed
+ * 如果需要 对hash表进行扩容
+ * */
 static int _dictExpandIfNeeded(dict *ht) {
     /* If the hash table is empty expand it to the initial size,
      * if the table is "full" dobule its size. */
-    if (ht->size == 0)
+    if (ht->size == 0)  // size为0，扩容到初始容量
         return dictExpand(ht, DICT_HT_INITIAL_SIZE);
     if (ht->used == ht->size)
-        return dictExpand(ht, ht->size*2);
+        return dictExpand(ht, ht->size * 2);
     return DICT_OK;
 }
 
@@ -307,7 +321,7 @@ static unsigned long _dictNextPower(unsigned long size) {
     unsigned long i = DICT_HT_INITIAL_SIZE;
 
     if (size >= LONG_MAX) return LONG_MAX;
-    while(1) {
+    while (1) {
         if (i >= size)
             return i;
         i *= 2;
@@ -328,7 +342,7 @@ static int _dictKeyIndex(dict *ht, const void *key) {
     h = dictHashKey(ht, key) & ht->sizemask;
     /* Search if this slot does not already contain the given key */
     he = ht->table[h];
-    while(he) {
+    while (he) {
         if (dictCompareHashKeys(ht, key, he->key))
             return -1;
         he = he->next;
