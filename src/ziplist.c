@@ -967,11 +967,18 @@ unsigned char *ziplistMerge(unsigned char **first, unsigned char **second) {
     }
     return target;
 }
-
+/**
+ * 向ziplist中插入一个新节点
+ * @param zl ziplist
+ * @param s 新节点字节数组
+ * @param slen s的长度
+ * @param where 头插 还是 尾插
+ * @return ziplist
+ */
 unsigned char *ziplistPush(unsigned char *zl, unsigned char *s, unsigned int slen, int where) {
-    unsigned char *p;
+    unsigned char *p;  // p指向ziplist的头或者尾，表示需要在p位置插入新节点
     p = (where == ZIPLIST_HEAD) ? ZIPLIST_ENTRY_HEAD(zl) : ZIPLIST_ENTRY_END(zl);
-    return __ziplistInsert(zl, p, s, slen);
+    return __ziplistInsert(zl, p, s, slen); // 在ziplist的指定位置插入节点
 }
 
 /* Returns an offset to use for iterating with ziplistNext. When the given
