@@ -259,11 +259,11 @@ sds sdsMakeRoomFor(sds s, size_t addlen) {
     sh = (char *) s - sdsHdrSize(oldtype);
     // 新长度
     newlen = (len + addlen);
-    // 新长度小于1MB, 按新长度的2倍扩容
+    // 新长度小于1M, 按新长度的2倍扩容
     if (newlen < SDS_MAX_PREALLOC)
         newlen *= 2;
     else
-        // 否则就加1MB
+        // 否则就加1k
         newlen += SDS_MAX_PREALLOC;
 
     // 新长度对应的sds类型

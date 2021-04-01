@@ -124,9 +124,3 @@ target_link_libraries(redis-cli
         PRIVATE linenoise
         PRIVATE hiredis
         )
-
-set(SRC_ZIPLIST
-        src/ziplist.c
-        src/ziplisttest.c
-        )
-add_executable(ziplisttest ${SRC_ZIPLIST})

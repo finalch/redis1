@@ -131,44 +131,71 @@ depend:
 .PHONY : depend
 
 #=============================================================================
-# Target rules for targets named ziplisttest
+# Target rules for targets named test
 
 # Build rule for target.
-ziplisttest: cmake_check_build_system
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 ziplisttest
-.PHONY : ziplisttest
+test: cmake_check_build_system
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 test
+.PHONY : test
 
 # fast build rule for target.
-ziplisttest/fast:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/ziplisttest.dir/build.make CMakeFiles/ziplisttest.dir/build
-.PHONY : ziplisttest/fast
+test/fast:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/test.dir/build.make CMakeFiles/test.dir/build
+.PHONY : test/fast
 
-ziplisttest.o: ziplisttest.c.o
+sds.o: sds.c.o
 
-.PHONY : ziplisttest.o
+.PHONY : sds.o
 
 # target to build an object file
-ziplisttest.c.o:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/ziplisttest.dir/build.make CMakeFiles/ziplisttest.dir/ziplisttest.c.o
-.PHONY : ziplisttest.c.o
+sds.c.o:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/test.dir/build.make CMakeFiles/test.dir/sds.c.o
+.PHONY : sds.c.o
 
-ziplisttest.i: ziplisttest.c.i
+sds.i: sds.c.i
 
-.PHONY : ziplisttest.i
+.PHONY : sds.i
 
 # target to preprocess a source file
-ziplisttest.c.i:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/ziplisttest.dir/build.make CMakeFiles/ziplisttest.dir/ziplisttest.c.i
-.PHONY : ziplisttest.c.i
+sds.c.i:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/test.dir/build.make CMakeFiles/test.dir/sds.c.i
+.PHONY : sds.c.i
 
-ziplisttest.s: ziplisttest.c.s
+sds.s: sds.c.s
 
-.PHONY : ziplisttest.s
+.PHONY : sds.s
 
 # target to generate assembly for a file
-ziplisttest.c.s:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/ziplisttest.dir/build.make CMakeFiles/ziplisttest.dir/ziplisttest.c.s
-.PHONY : ziplisttest.c.s
+sds.c.s:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/test.dir/build.make CMakeFiles/test.dir/sds.c.s
+.PHONY : sds.c.s
+
+test.o: test.c.o
+
+.PHONY : test.o
+
+# target to build an object file
+test.c.o:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/test.dir/build.make CMakeFiles/test.dir/test.c.o
+.PHONY : test.c.o
+
+test.i: test.c.i
+
+.PHONY : test.i
+
+# target to preprocess a source file
+test.c.i:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/test.dir/build.make CMakeFiles/test.dir/test.c.i
+.PHONY : test.c.i
+
+test.s: test.c.s
+
+.PHONY : test.s
+
+# target to generate assembly for a file
+test.c.s:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/test.dir/build.make CMakeFiles/test.dir/test.c.s
+.PHONY : test.c.s
 
 # Help Target
 help:
@@ -178,10 +205,13 @@ help:
 	@echo "... depend"
 	@echo "... edit_cache"
 	@echo "... rebuild_cache"
-	@echo "... ziplisttest"
-	@echo "... ziplisttest.o"
-	@echo "... ziplisttest.i"
-	@echo "... ziplisttest.s"
+	@echo "... test"
+	@echo "... sds.o"
+	@echo "... sds.i"
+	@echo "... sds.s"
+	@echo "... test.o"
+	@echo "... test.i"
+	@echo "... test.s"
 .PHONY : help
 
 

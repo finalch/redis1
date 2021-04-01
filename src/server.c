@@ -4038,13 +4038,12 @@ int redisIsSupervised(int mode) {
     return 0;
 }
 
-
 int main(int argc, char **argv) {
     struct timeval tv;
     int j;
 
 #ifdef REDIS_TEST
-                                                                                                                            if (argc == 3 && !strcasecmp(argv[1], "test")) {
+    if (argc == 3 && !strcasecmp(argv[1], "test")) {
         if (!strcasecmp(argv[2], "ziplist")) {
             return ziplistTest(argc, argv);
         } else if (!strcasecmp(argv[2], "quicklist")) {
