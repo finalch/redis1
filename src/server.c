@@ -724,18 +724,30 @@ dictType replScriptCacheDictType = {
         NULL                        /* val destructor */
 };
 
+/**
+ * 指定字典表是否需要Resize  节点数量 / 字典表长度 < 10%
+ * @param dict 指定字典表
+ * @return 1 需要 节点数量 / 字典表长度 < 10%;  0 不需要
+ */
 int htNeedsResize(dict *dict) {
     long long size, used;
 
     size = dictSlots(dict);
     used = dictSize(dict);
+    // 节点数量 / 字典表长度 < 10%
     return (size > DICT_HT_INITIAL_SIZE &&
             (used * 100 / size < HASHTABLE_MIN_FILL));
 }
 
 /* If the percentage of used slots in the HT reaches HASHTABLE_MIN_FILL
  * we resize the hash table to save memory */
+/**
+ * 尝试Resize数据库dbid的k-v字典表和过期k-v字典表
+ * 目的是为了缩小dict的大小, 释放内存空间
+ * @param dbid
+ */
 void tryResizeHashTables(int dbid) {
+    // 节点数量 / 字典表长度 < 10%
     if (htNeedsResize(server.db[dbid].dict))
         dictResize(server.db[dbid].dict);
     if (htNeedsResize(server.db[dbid].expires))
@@ -749,13 +761,20 @@ void tryResizeHashTables(int dbid) {
  *
  * The function returns 1 if some rehashing was performed, otherwise 0
  * is returned. */
+/**
+ * 渐进式Rehash一个数据库中的k-v字典表
+ * @param dbid 数据库id
+ * @return 1 rehash完成 0 未rehash
+ */
 int incrementallyRehash(int dbid) {
     /* Keys dictionary */
+    /** rehash 数据库dbid中的key-value字典表 */
     if (dictIsRehashing(server.db[dbid].dict)) {
         dictRehashMilliseconds(server.db[dbid].dict, 1);
         return 1; /* already used our millisecond for this loop... */
     }
     /* Expires */
+    /** rehash 数据库dbid中的过期的key-value字典表 */
     if (dictIsRehashing(server.db[dbid].expires)) {
         dictRehashMilliseconds(server.db[dbid].expires, 1);
         return 1; /* already used our millisecond for this loop... */
@@ -814,6 +833,12 @@ long long getInstantaneousMetric(int metric) {
  * The function gets the current time in milliseconds as argument since
  * it gets called multiple times in a loop, so calling gettimeofday() for
  * each iteration would be costly without any actual gain. */
+/**
+ * 关闭空闲超时的客户端
+ * @param c 客户端
+ * @param now_ms 当前时间ms
+ * @return 是否关闭 1 关闭 0 未关闭
+ */
 int clientsCronHandleTimeout(client *c, mstime_t now_ms) {
     time_t now = now_ms / 1000;
 
@@ -988,7 +1013,9 @@ void clientsCron(void) {
         /* The following functions do different service checks on the client.
          * The protocol is that they return non-zero if the client was
          * terminated. */
+        // 处理空闲超时的客户端
         if (clientsCronHandleTimeout(c, now)) continue;
+        // 处理客户端的Query缓冲区
         if (clientsCronResizeQueryBuffer(c)) continue;
         if (clientsCronTrackExpansiveClients(c)) continue;
     }
@@ -997,45 +1024,60 @@ void clientsCron(void) {
 /* This function handles 'background' operations we are required to do
  * incrementally in Redis databases, such as active key expiring, resizing,
  * rehashing. */
+/**
+ * 数据库级别的定时任务
+ */
 void databasesCron(void) {
     /* Expire keys by random sampling. Not required for slaves
      * as master will synthesize DELs for us. */
+    /** 过期key */
     if (server.active_expire_enabled) {
+        // master 节点
         if (server.masterhost == NULL) {
             activeExpireCycle(ACTIVE_EXPIRE_CYCLE_SLOW);
         } else {
+            // slave 节点
             expireSlaveKeys();
         }
     }
 
     /* Defrag keys gradually. */
+    /** 内存碎片 */
     if (server.active_defrag_enabled)
         activeDefragCycle();
 
     /* Perform hash tables rehashing if needed, but only if there are no
      * other processes saving the DB on disk. Otherwise rehashing is bad
      * as will cause a lot of copy-on-write of memory pages. */
+    /** 如果没有正在通过子进程持久化刷盘, 尝试rehash字典表 */
     if (server.rdb_child_pid == -1 && server.aof_child_pid == -1) {
         /* We use global counters so if we stop the computation at a given
          * DB we'll be able to start from the successive in the next
          * cron loop iteration. */
         static unsigned int resize_db = 0;
         static unsigned int rehash_db = 0;
+        // 默认最多遍历16个
         int dbs_per_call = CRON_DBS_PER_CALL;
         int j;
 
         /* Don't test more DBs than we have. */
+        // 最多遍历dbnum个
         if (dbs_per_call > server.dbnum) dbs_per_call = server.dbnum;
 
         /* Resize */
+        /** 当数据库j中k-v字典表可过期的k-v字典表 满足：节点数量 / 字典表长度 < 10%, 目的：需要缩小字典表大小, 释放内存*/
         for (j = 0; j < dbs_per_call; j++) {
             tryResizeHashTables(resize_db % server.dbnum);
             resize_db++;
         }
-
         /* Rehash */
+        /**
+         * 通过Rehash, 缩小字典表的大小, 实现释放内存
+         * 最多对一个数据库中的有效期的k-v字典或者过期的k-v字典进行一次rehash
+         * */
         if (server.activerehashing) {
             for (j = 0; j < dbs_per_call; j++) {
+                // 对一个数据库完成一次rehash就跳出循环
                 int work_done = incrementallyRehash(rehash_db);
                 if (work_done) {
                     /* If the function did some work, stop here, we'll do
@@ -1098,8 +1140,16 @@ void updateCachedTime(int update_daylight_info) {
  * so in order to throttle execution of things we want to do less frequently
  * a macro is used: run_with_period(milliseconds) { .... }
  */
-
+/**
+ * 系统定时任务
+ * @param eventLoop 事件管理器
+ * @param id 时间事件唯一标识
+ * @param clientData 私有数据
+ * @return
+ */
 int serverCron(struct aeEventLoop *eventLoop, long long id, void *clientData) {
+    serverLog(LL_DEBUG,
+              "执行serverCron ... ");
     int j;
     UNUSED(eventLoop);
     UNUSED(id);
@@ -1125,11 +1175,14 @@ int serverCron(struct aeEventLoop *eventLoop, long long id, void *clientData) {
             }
         }
     }
-
+    /** 100ms统计一次指标 */
     run_with_period(100) {
+        // 命令执行次数
         trackInstantaneousMetric(STATS_METRIC_COMMAND, server.stat_numcommands);
+        // input流量
         trackInstantaneousMetric(STATS_METRIC_NET_INPUT,
                                  server.stat_net_input_bytes);
+        // output流量
         trackInstantaneousMetric(STATS_METRIC_NET_OUTPUT,
                                  server.stat_net_output_bytes);
     }
@@ -1149,6 +1202,7 @@ int serverCron(struct aeEventLoop *eventLoop, long long id, void *clientData) {
     atomicSet(server.lruclock, lruclock);
 
     /* Record the max memory used since the server was started. */
+    /** 统计内存占用峰值 */
     if (zmalloc_used_memory() > server.stat_peak_memory)
         server.stat_peak_memory = zmalloc_used_memory();
 
@@ -1182,6 +1236,7 @@ int serverCron(struct aeEventLoop *eventLoop, long long id, void *clientData) {
 
     /* We received a SIGTERM, shutting down here in a safe way, as it is
      * not ok doing so inside the signal handler. */
+    // 关闭服务器
     if (server.shutdown_asap) {
         if (prepareForShutdown(SHUTDOWN_NOFLAGS) == C_OK) exit(0);
         serverLog(LL_WARNING,
@@ -1190,12 +1245,15 @@ int serverCron(struct aeEventLoop *eventLoop, long long id, void *clientData) {
     }
 
     /* Show some info about non-empty databases */
+    /** 5s执行一次 */
     run_with_period(5000) {
         for (j = 0; j < server.dbnum; j++) {
             long long size, used, vkeys;
-
+            // 统计数据库j中字典表的长度
             size = dictSlots(server.db[j].dict);
+            // 统计数据库j中key的数量
             used = dictSize(server.db[j].dict);
+            // 统计数据库j中过期的key的数量
             vkeys = dictSize(server.db[j].expires);
             if (used || vkeys) {
                 serverLog(LL_VERBOSE, "DB %d: %lld keys (%lld volatile) in %lld slots HT.", j, used, vkeys, size);
@@ -1206,6 +1264,7 @@ int serverCron(struct aeEventLoop *eventLoop, long long id, void *clientData) {
 
     /* Show information about connected clients */
     if (!server.sentinel_mode) {
+        /** 5s统计一次客户端的数量 */
         run_with_period(5000) {
             serverLog(LL_VERBOSE,
                       "%lu clients connected (%lu replicas), %zu bytes in use",
@@ -1216,13 +1275,16 @@ int serverCron(struct aeEventLoop *eventLoop, long long id, void *clientData) {
     }
 
     /* We need to do a few operations on clients asynchronously. */
+    /** 对客户端的周期处理*/
     clientsCron();
 
     /* Handle background operations on Redis databases. */
+    /** 对数据库的周期处理 */
     databasesCron();
 
     /* Start a scheduled AOF rewrite if this was requested by the user while
      * a BGSAVE was in progress. */
+    /** 有延迟执行的BGSAVE命令和BGREWRITEAOF, 重写AOF文件 */
     if (server.rdb_child_pid == -1 && server.aof_child_pid == -1 &&
         server.aof_rewrite_scheduled) {
         rewriteAppendOnlyFileBackground();
@@ -1357,6 +1419,7 @@ int serverCron(struct aeEventLoop *eventLoop, long long id, void *clientData) {
     }
 
     server.cronloops++;
+    /** 第一次执行之后, 周期变为了 1s/hz, hz默认10, 所以serverCron默认执行周期为100ms */
     return 1000 / server.hz;
 }
 
@@ -2018,6 +2081,16 @@ void resetServerStats(void) {
     server.aof_delayed_fsync = 0;
 }
 
+/**
+ * 初始化Redis服务器
+ * 初始化Redis服务端
+ * 创建事件管理器
+ * 监听端口
+ * 创建数据库
+ * 创建文件事件管理器
+ * 创建时间事件管理器
+ * AOF
+ */
 void initServer(void) {
     int j;
 
@@ -2034,7 +2107,7 @@ void initServer(void) {
     server.pid = getpid();
     server.current_client = NULL;
     server.fixed_time_expire = 0;
-    server.clients = listCreate();
+    server.clients = listCreate();  // 双向链表 保存Redis客户端
     server.clients_index = raxNew();
     server.clients_to_close = listCreate();
     server.slaves = listCreate();
@@ -2050,6 +2123,12 @@ void initServer(void) {
 
     createSharedObjects();
     adjustOpenFilesLimit();
+    /** 创建事件管理器
+     * #define CONFIG_MIN_RESERVED_FDS 32
+     * #define CONFIG_FDSET_INCR (CONFIG_MIN_RESERVED_FDS+96)
+     * server.maxclients默认10000
+     * 默认监听10128个fd
+     * */
     server.el = aeCreateEventLoop(server.maxclients + CONFIG_FDSET_INCR);
     if (server.el == NULL) {
         serverLog(LL_WARNING,
@@ -2060,6 +2139,7 @@ void initServer(void) {
     server.db = zmalloc(sizeof(redisDb) * server.dbnum);
 
     /* Open the TCP listening socket for the user commands. */
+    // 端口监听
     if (server.port != 0 &&
         listenToPort(server.port, server.ipfd, &server.ipfd_count) == C_ERR)
         exit(1);
@@ -2132,6 +2212,11 @@ void initServer(void) {
     /* Create the timer callback, this is our way to process many background
      * operations incrementally, like clients timeout, eviction of unaccessed
      * expired keys and so forth. */
+    /**
+     * 事件处理器之时间事件处理器
+     * 向事件管理器中注册一个周期任务 serverCron
+     * 时间 1ms
+     * **/
     if (aeCreateTimeEvent(server.el, 1, serverCron, NULL, NULL) == AE_ERR) {
         serverPanic("Can't create event loop timers.");
         exit(1);
@@ -2139,6 +2224,12 @@ void initServer(void) {
 
     /* Create an event handler for accepting new connections in TCP and Unix
      * domain sockets. */
+    /**
+     * 事件处理器之tcp连接处理器
+     * 主要是向IO多路复用句柄中注册多个端口监听句柄
+     * 通过aeMain() -> aeProcessEvents() ->aeApiPoll() ->epoll_wait() -> 内核将循环监听这些句柄
+     * 如果有事件发生, 则会在aeProcessEvents()方法中回调acceptTcpHandler函数
+     */
     for (j = 0; j < server.ipfd_count; j++) {
         if (aeCreateFileEvent(server.el, server.ipfd[j], AE_READABLE,
                               acceptTcpHandler, NULL) == AE_ERR) {
@@ -2481,6 +2572,7 @@ void call(client *c, int flags) {
     dirty = server.dirty;
     updateCachedTime(0);
     start = server.ustime;
+    // 调用命令指向的函数，执行客户端的命令
     c->cmd->proc(c);
     duration = ustime() - start;
     dirty = server.dirty - dirty;
@@ -4082,7 +4174,7 @@ int main(int argc, char **argv) {
     getRandomHexChars(hashseed, sizeof(hashseed));
     dictSetHashFunctionSeed((uint8_t *) hashseed);
     server.sentinel_mode = checkForSentinelMode(argc, argv);
-    // 初始化配置
+    // 初始化默认配置
     initServerConfig();
     moduleInitModulesSystem();
 
@@ -4199,7 +4291,15 @@ int main(int argc, char **argv) {
     server.supervised = redisIsSupervised(server.supervised_mode);
     int background = server.daemonize && !server.supervised;
     if (background) daemonize();
-
+    /**
+     * 初始化Redis服务端
+     * 创建事件管理器
+     * 监听端口
+     * 创建数据库
+     * 添加文件事件管理器
+     * 添加时间事件管理器
+     * AOF
+     */
     initServer();
     if (background || server.pidfile) createPidFile();
     redisSetProcTitle(argv[0]);
@@ -4241,6 +4341,9 @@ int main(int argc, char **argv) {
 
     aeSetBeforeSleepProc(server.el, beforeSleep);
     aeSetAfterSleepProc(server.el, afterSleep);
+    /**
+     * 启动事件管理器
+     */
     aeMain(server.el);
     aeDeleteEventLoop(server.el);
     return 0;

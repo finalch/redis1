@@ -157,10 +157,12 @@ int dictResize(dict *d) {
 
 /* Expand or create the hash table */
 /**
- * 字典扩容
- * @param d
- * @param size
- * @return
+ * 字典扩容 只有在没有rehash的时候进行字典扩容
+ * 1）第一次扩容时, ht[0]为NULL，扩容完成之后, ht[0]指向新的hash表
+ * 2）非第一次扩容时, 扩容完成之后, ht[1]指向新的hash表, 并且将rehashidx置为0, 则在所有调用dictIsRehashing(dict *d)返回值都为true
+ * @param d 字典表
+ * @param size 扩容后的大小
+ * @return 0 成功 1 失败
  */
 int dictExpand(dict *d, unsigned long size) {
     /* the size is invalid if it is smaller than the number of
@@ -190,7 +192,7 @@ int dictExpand(dict *d, unsigned long size) {
 
     /* Prepare a second hash table for incremental rehashing */
     d->ht[1] = n;
-    d->rehashidx = 0; // 标志位，在rehash的线程中，rehash ht[0].table[0]中的键值对
+    d->rehashidx = 0; // 标志位，rehash过程执行的桶下标; 在rehash的过程中，rehash ht[0].table[d->rehashidx]中的键值对
     return DICT_OK;
 }
 
@@ -267,6 +269,12 @@ long long timeInMilliseconds(void) {
 }
 
 /* Rehash for an amount of time between ms milliseconds and ms+1 milliseconds */
+/**
+ * ms时间内rehash字典表d
+ * @param d 字典表
+ * @param ms 时长
+ * @return 字典表中被rehash的桶的数量
+ */
 int dictRehashMilliseconds(dict *d, int ms) {
     long long start = timeInMilliseconds();
     int rehashes = 0;
@@ -397,6 +405,12 @@ int dictReplace(dict *d, void *key, void *val) {
  * existing key is returned.)
  *
  * See dictAddRaw() for more information. */
+/**
+ * 在字典表中增加或者查找指定key
+ * @param d 字典表
+ * @param key 指定key
+ * @return 新节点或者旧节点
+ */
 dictEntry *dictAddOrFind(dict *d, void *key) {
     dictEntry *entry, *existing;
     entry = dictAddRaw(d, key, &existing);
@@ -537,6 +551,12 @@ void dictRelease(dict *d) {
     zfree(d);
 }
 
+/**
+ * 从字典表中查找指定key的节点
+ * @param d 字典表
+ * @param key key值
+ * @return NULL 未找到 非NULL 指向节点的指针
+ */
 dictEntry *dictFind(dict *d, const void *key) {
     dictEntry *he;
     uint64_t h, idx, table;

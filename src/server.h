@@ -828,7 +828,7 @@ typedef struct zskiplistNode {
     } level[]; //  柔性数组, 最大32
 } zskiplistNode;
 /**
- * 跳跃表quic
+ * 跳跃表
  */
 typedef struct zskiplist {
     struct zskiplistNode *header, *tail;  // 头节点，尾节点
