@@ -2705,7 +2705,9 @@ int processCommand(client *c) {
 
     /* Now lookup the command and check ASAP about trivial error conditions
      * such as wrong arity, bad command name and so forth. */
+    /** 查找客户端命令对应的执行函数 */
     c->cmd = c->lastcmd = lookupCommand(c->argv[0]->ptr);
+    // 没有找到
     if (!c->cmd) {
         flagTransaction(c);
         sds args = sdsempty();
@@ -2717,7 +2719,7 @@ int processCommand(client *c) {
         sdsfree(args);
         return C_OK;
     } else if ((c->cmd->arity > 0 && c->cmd->arity != c->argc) ||
-               (c->argc < -c->cmd->arity)) {
+               (c->argc < -c->cmd->arity)) { // 参数数量不合法
         flagTransaction(c);
         addReplyErrorFormat(c, "wrong number of arguments for '%s' command",
                             c->cmd->name);
@@ -2725,6 +2727,7 @@ int processCommand(client *c) {
     }
 
     /* Check if the user is authenticated */
+    /** 权限校验 */
     if (server.requirepass && !c->authenticated && c->cmd->proc != authCommand) {
         flagTransaction(c);
         addReply(c, shared.noautherr);
@@ -2735,6 +2738,7 @@ int processCommand(client *c) {
      * However we don't perform the redirection if:
      * 1) The sender of this command is our master.
      * 2) The command has no key arguments. */
+    /** 集群模式下的处理 */
     if (server.cluster_enabled &&
         !(c->flags & CLIENT_MASTER) &&
         !(c->flags & CLIENT_LUA &&

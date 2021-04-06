@@ -163,13 +163,20 @@ robj *lookupKeyRead(redisDb *db, robj *key) {
  *
  * Returns the linked value object if the key exists or NULL if the key
  * does not exist in the specified DB. */
+/**
+ * 查找key for write
+ * @param db 数据库
+ * @param key key对象
+ * @return value对象
+ */
 robj *lookupKeyWrite(redisDb *db, robj *key) {
+    // key是否已经过期了
     expireIfNeeded(db, key);
     return lookupKey(db, key, LOOKUP_NONE);
 }
 
 /***
- * 查找key
+ * 查找key for read
  * @param c 客户端对象
  * @param key key对象
  * @param reply 回复对象

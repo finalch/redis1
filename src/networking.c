@@ -1478,9 +1478,11 @@ void processInputBuffer(client *c) {
                 c->reqtype = PROTO_REQ_INLINE;
             }
         }
-
+        /** 解析客户端发来的数据 --> 存入c->argc和c->argv*/
+        /** 一个key */
         if (c->reqtype == PROTO_REQ_INLINE) {
             if (processInlineBuffer(c) != C_OK) break;
+            /** 批量 多个key keys kk_* */
         } else if (c->reqtype == PROTO_REQ_MULTIBULK) {
             if (processMultibulkBuffer(c) != C_OK) break;
         } else {
@@ -1492,6 +1494,7 @@ void processInputBuffer(client *c) {
             resetClient(c);
         } else {
             /* Only reset the client when the command was executed. */
+            /** 执行客户端的命令 */
             if (processCommand(c) == C_OK) {
                 if (c->flags & CLIENT_MASTER && !(c->flags & CLIENT_MULTI)) {
                     /* Update the applied replication offset of our master. */
@@ -1618,6 +1621,7 @@ void readQueryFromClient(aeEventLoop *el, int fd, void *privdata, int mask) {
      * was actually applied to the master state: this quantity, and its
      * corresponding part of the replication stream, will be propagated to
      * the sub-slaves and to the replication backlog. */
+    serverLog(LL_WARNING, "argc: %d", c->argc);
     processInputBufferAndReplicate(c);
 }
 

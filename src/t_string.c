@@ -67,8 +67,9 @@ static int checkStringLength(client *c, long long size) {
 void setGenericCommand(client *c, int flags, robj *key, robj *val, robj *expire, int unit, robj *ok_reply,
                        robj *abort_reply) {
     long long milliseconds = 0; /* initialized to avoid any harmness warning */
-
+    /** 设置了过期时间 */
     if (expire) {
+        /** 从expire对象中获取过期时间戳 */
         if (getLongLongFromObjectOrReply(c, expire, &milliseconds, NULL) != C_OK)
             return;
         if (milliseconds <= 0) {
@@ -77,14 +78,21 @@ void setGenericCommand(client *c, int flags, robj *key, robj *val, robj *expire,
         }
         if (unit == UNIT_SECONDS) milliseconds *= 1000;
     }
-
+    /**
+     * 根据SET KEY VALUE NX/XX命令判断是否能写成功
+     * NX && key存在
+     * XX && key不存在
+     * */
     if ((flags & OBJ_SET_NX && lookupKeyWrite(c->db, key) != NULL) ||
         (flags & OBJ_SET_XX && lookupKeyWrite(c->db, key) == NULL)) {
         addReply(c, abort_reply ? abort_reply : shared.nullbulk);
         return;
     }
+    /** 更新key */
     setKey(c->db, key, val);
+    /** server 变化次数+1   -> serverCron()中RDB自动持久化机制 */
     server.dirty++;
+    /** 在db的过期key-value字典表中设置节点 */
     if (expire) setExpire(c, c->db, key, mstime() + milliseconds);
     notifyKeyspaceEvent(NOTIFY_STRING, "set", key, c->db->id);
     if (expire)
@@ -141,21 +149,33 @@ void setCommand(client *c) {
             return;
         }
     }
-
+    /** 对value进行编码 */
     c->argv[2] = tryObjectEncoding(c->argv[2]);
     setGenericCommand(c, flags, c->argv[1], c->argv[2], expire, unit, NULL, NULL);
 }
 
+/***
+ * SETNX KEY VALUE 命令
+ * @param c 客户端对象
+ */
 void setnxCommand(client *c) {
     c->argv[2] = tryObjectEncoding(c->argv[2]);
     setGenericCommand(c, OBJ_SET_NX, c->argv[1], c->argv[2], NULL, 0, shared.cone, shared.czero);
 }
 
+/**
+ * SETEX KEY SECONDS VALUE
+ * @param c 客户端对象
+ */
 void setexCommand(client *c) {
     c->argv[3] = tryObjectEncoding(c->argv[3]);
     setGenericCommand(c, OBJ_SET_NO_FLAGS, c->argv[1], c->argv[3], c->argv[2], UNIT_SECONDS, NULL, NULL);
 }
 
+/***
+ * PSETEX KEY MILLISECONDS VALUE
+ * @param c 客户端对象
+ */
 void psetexCommand(client *c) {
     c->argv[3] = tryObjectEncoding(c->argv[3]);
     setGenericCommand(c, OBJ_SET_NO_FLAGS, c->argv[1], c->argv[3], c->argv[2], UNIT_MILLISECONDS, NULL, NULL);
