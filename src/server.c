@@ -1148,8 +1148,6 @@ void updateCachedTime(int update_daylight_info) {
  * @return
  */
 int serverCron(struct aeEventLoop *eventLoop, long long id, void *clientData) {
-    serverLog(LL_DEBUG,
-              "执行serverCron ... ");
     int j;
     UNUSED(eventLoop);
     UNUSED(id);
@@ -1160,6 +1158,7 @@ int serverCron(struct aeEventLoop *eventLoop, long long id, void *clientData) {
     if (server.watchdog_period) watchdogScheduleSignal(server.watchdog_period);
 
     /* Update the time cache. */
+    /** 更新缓存的时间戳 */
     updateCachedTime(1);
 
     server.hz = server.config_hz;
@@ -1284,7 +1283,7 @@ int serverCron(struct aeEventLoop *eventLoop, long long id, void *clientData) {
 
     /* Start a scheduled AOF rewrite if this was requested by the user while
      * a BGSAVE was in progress. */
-    /** 有延迟执行的BGSAVE命令和BGREWRITEAOF, 重写AOF文件 */
+    /** 没有RDB子进程和AOF子进程, 有延迟执行的BGSAVE命令和BGREWRITEAOF, 重写AOF文件 */
     if (server.rdb_child_pid == -1 && server.aof_child_pid == -1 &&
         server.aof_rewrite_scheduled) {
         rewriteAppendOnlyFileBackground();
@@ -1327,6 +1326,7 @@ int serverCron(struct aeEventLoop *eventLoop, long long id, void *clientData) {
     } else {
         /* If there is not a background saving/rewrite in progress check if
          * we have to save/rewrite now. */
+        /** 检查是否触发BGSAVE 触发条件有config文件中的save m n进行策略配置 */
         for (j = 0; j < server.saveparamslen; j++) {
             struct saveparam *sp = server.saveparams + j;
 
@@ -1334,6 +1334,7 @@ int serverCron(struct aeEventLoop *eventLoop, long long id, void *clientData) {
              * the given amount of seconds, and if the latest bgsave was
              * successful or if, in case of an error, at least
              * CONFIG_BGSAVE_RETRY_DELAY seconds already elapsed. */
+            // 变化的数量 + 周期
             if (server.dirty >= sp->changes &&
                 server.unixtime - server.lastsave > sp->seconds &&
                 (server.unixtime - server.lastbgsave_try >
@@ -1349,6 +1350,7 @@ int serverCron(struct aeEventLoop *eventLoop, long long id, void *clientData) {
         }
 
         /* Trigger an AOF rewrite if needed. */
+        /** 开启了AOF持久化 没有子进程 重写AOF文件 */
         if (server.aof_state == AOF_ON &&
             server.rdb_child_pid == -1 &&
             server.aof_child_pid == -1 &&
@@ -1367,36 +1369,44 @@ int serverCron(struct aeEventLoop *eventLoop, long long id, void *clientData) {
 
     /* AOF postponed flush: Try at every cron cycle if the slow fsync
      * completed. */
+    /** AOF持久化 数据刷盘 从缓冲区写到磁盘 */
     if (server.aof_flush_postponed_start) flushAppendOnlyFile(0);
 
     /* AOF write errors: in this case we have a buffer to flush as well and
      * clear the AOF error in case of success to make the DB writable again,
      * however to try every second is enough in case of 'hz' is set to
      * an higher frequency. */
+    /** AOF持久化 周期1s */
     run_with_period(1000) {
         if (server.aof_last_write_status == C_ERR)
             flushAppendOnlyFile(0);
     }
 
     /* Close clients that need to be closed asynchronous */
+    /** 异步关闭客户端 */
     freeClientsInAsyncFreeQueue();
 
     /* Clear the paused clients flag if needed. */
+    /** 将阻塞超时的客户端移动到no blocking的list中, 在下一次事件管理器循环之前, 优先处理 beforesleep() */
     clientsArePaused(); /* Don't check return value, just use the side effect.*/
 
     /* Replication cron function -- used to reconnect to master,
      * detect transfer failures, start background RDB transfers and so forth. */
+    /** 主从复制 周期1s */
     run_with_period(1000) replicationCron();
 
     /* Run the Redis Cluster cron. */
+    /** 集群 周期任务 */
     run_with_period(100) {
         if (server.cluster_enabled) clusterCron();
     }
 
     /* Run the Sentinel timer if we are in sentinel mode. */
+    /** 哨兵定时任务 */
     if (server.sentinel_mode) sentinelTimer();
 
     /* Cleanup expired MIGRATE cached sockets. */
+    /** 关闭空闲超时的socket 周期1s */
     run_with_period(1000) {
         migrateCloseTimedoutSockets();
     }
@@ -1408,6 +1418,7 @@ int serverCron(struct aeEventLoop *eventLoop, long long id, void *clientData) {
      * Note: this code must be after the replicationCron() call above so
      * make sure when refactoring this file to keep this order. This is useful
      * because we want to give priority to RDB savings for replication. */
+    /** 执行延迟的BGSAVE命令 */
     if (server.rdb_child_pid == -1 && server.aof_child_pid == -1 &&
         server.rdb_bgsave_scheduled &&
         (server.unixtime - server.lastbgsave_try > CONFIG_BGSAVE_RETRY_DELAY ||
@@ -4338,8 +4349,9 @@ int main(int argc, char **argv) {
                   "WARNING: You specified a maxmemory value that is less than 1MB (current value is %llu bytes). Are you sure this is what you really want?",
                   server.maxmemory);
     }
-
+    /** 事件管理器循环之前执行的处理函数 */
     aeSetBeforeSleepProc(server.el, beforeSleep);
+    /** 事件管理器循环之后执行的处理函数 */
     aeSetAfterSleepProc(server.el, afterSleep);
     /**
      * 启动事件管理器

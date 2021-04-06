@@ -5044,7 +5044,7 @@ void migrateCloseTimedoutSockets(void) {
 
     while((de = dictNext(di)) != NULL) {
         migrateCachedSocket *cs = dictGetVal(de);
-
+        // #define MIGRATE_SOCKET_CACHE_TTL 10
         if ((server.unixtime - cs->last_use_time) > MIGRATE_SOCKET_CACHE_TTL) {
             close(cs->fd);
             zfree(cs);
