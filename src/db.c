@@ -52,14 +52,24 @@ void updateLFU(robj *val) {
 /* Low level key lookup API, not actually called directly from commands
  * implementations that should instead rely on lookupKeyRead(),
  * lookupKeyWrite() and lookupKeyReadWithFlags(). */
+/***
+ * 从数据库中查找key
+ * @param db 数据库db
+ * @param key key
+ * @param flags
+ * @return
+ */
 robj *lookupKey(redisDb *db, robj *key, int flags) {
+    /** 从key-value字典表中查找key */
     dictEntry *de = dictFind(db->dict, key->ptr);
     if (de) {
+        // value对象
         robj *val = dictGetVal(de);
 
         /* Update the access time for the ageing algorithm.
          * Don't do it if we have a saving child, as this will trigger
          * a copy on write madness. */
+        /** 如果没有RDB和AOF子进程, 并且查找模式不为: LOOKUP_NOTOUCH, 则修改value对象的最近访问时间 */
         if (server.rdb_child_pid == -1 &&
             server.aof_child_pid == -1 &&
             !(flags & LOOKUP_NOTOUCH)) {
@@ -98,7 +108,10 @@ robj *lookupKey(redisDb *db, robj *key, int flags) {
  * expiring our key via DELs in the replication link. */
 robj *lookupKeyReadWithFlags(redisDb *db, robj *key, int flags) {
     robj *val;
-
+    /**
+     * key如果过期, 则会进行删除
+     * 删除策略由配置文件中的lazyfree-lazy-expire控制: no(直接删除)或者yes(惰性删除)
+     * */
     if (expireIfNeeded(db, key) == 1) {
         /* Key expired. If we are in the context of a master, expireIfNeeded()
          * returns 0 only when the key does not exist at all, so it's safe
@@ -128,10 +141,13 @@ robj *lookupKeyReadWithFlags(redisDb *db, robj *key, int flags) {
             return NULL;
         }
     }
+    /** key没有过期 */
     val = lookupKey(db, key, flags);
+    /** 没找到, 未命中数量+1 */
     if (val == NULL)
         server.stat_keyspace_misses++;
     else
+        /** 命中数量+1 */
         server.stat_keyspace_hits++;
     return val;
 }
@@ -152,8 +168,16 @@ robj *lookupKeyWrite(redisDb *db, robj *key) {
     return lookupKey(db, key, LOOKUP_NONE);
 }
 
+/***
+ * 查找key
+ * @param c 客户端对象
+ * @param key key对象
+ * @param reply 回复对象
+ * @return value对象
+ */
 robj *lookupKeyReadOrReply(client *c, robj *key, robj *reply) {
     robj *o = lookupKeyRead(c->db, key);
+    // 没有找到, 回复reply
     if (!o) addReply(c, reply);
     return o;
 }
@@ -1110,6 +1134,12 @@ void setExpire(client *c, redisDb *db, robj *key, long long when) {
 
 /* Return the expire time of the specified key, or -1 if no expire
  * is associated with this key (i.e. the key is non volatile) */
+/**
+ * 获取key在db中的过期时间
+ * @param db 数据库db
+ * @param key key对象
+ * @return -1 没有对key设置过期时间 >-1, key的过期时间戳
+ */
 long long getExpire(redisDb *db, robj *key) {
     dictEntry *de;
 
@@ -1149,10 +1179,16 @@ void propagateExpire(redisDb *db, robj *key, int lazy) {
 }
 
 /* Check if the key is expired. */
+/**
+ * key是否过期
+ * @param db 数据库
+ * @param key key
+ * @return 0 未过期 1 过期了
+ */
 int keyIsExpired(redisDb *db, robj *key) {
     mstime_t when = getExpire(db, key);
     mstime_t now;
-
+    // 未对key设置过期时间
     if (when < 0) return 0; /* No expire for this key */
 
     /* Don't expire anything while loading. It will be done later. */

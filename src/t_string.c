@@ -163,19 +163,25 @@ void psetexCommand(client *c) {
 
 int getGenericCommand(client *c) {
     robj *o;
-
+    // o为value对象
+    // o == NULL时, lookupKeyReadOrReply()已经回复
     if ((o = lookupKeyReadOrReply(c, c->argv[1], shared.nullbulk)) == NULL)
         return C_OK;
-
+    // value类型不是String时
     if (o->type != OBJ_STRING) {
         addReply(c, shared.wrongtypeerr);
         return C_ERR;
     } else {
+        // 返回value
         addReplyBulk(c, o);
         return C_OK;
     }
 }
 
+/**
+ * get key命令
+ * @param c 客户端
+ */
 void getCommand(client *c) {
     getGenericCommand(c);
 }

@@ -740,9 +740,13 @@ typedef struct client {
                                replication stream that we are receiving from
                                the master. */
     size_t querybuf_peak;   /* Recent (100ms or more) peak of querybuf size. */
+    /* 命令的参数数量 */
     int argc;               /* Num of arguments of current command. */
+    /* 命令的参数 */
     robj **argv;            /* Arguments of current command. */
+    /* 该命令对应的命令table中的命令结构体 */
     struct redisCommand *cmd, *lastcmd;  /* Last command executed. */
+    /* 命令中是否有* 批量查询多个key */
     int reqtype;            /* Request protocol type: PROTO_REQ_* */
     int multibulklen;       /* Number of multi bulk arguments left to read. */
     long bulklen;           /* Length of bulk argument in multi bulk request. */
@@ -2188,7 +2192,7 @@ void objectSetLRUOrLFU(robj *val, long long lfu_freq, long long lru_idle,
                        long long lru_clock);
 
 #define LOOKUP_NONE 0
-#define LOOKUP_NOTOUCH (1<<0)
+#define LOOKUP_NOTOUCH (1<<0)  /** 1 不修改key的最近访问时间 */
 
 void dbAdd(redisDb *db, robj *key, robj *val);
 
