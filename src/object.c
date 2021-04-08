@@ -211,6 +211,10 @@ robj *dupStringObject(const robj *o) {
     }
 }
 
+/**
+ * 创建一个ptr指向快表的redisObject对象
+ * @return redisObject对象
+ */
 robj *createQuicklistObject(void) {
     quicklist *l = quicklistCreate();
     robj *o = createObject(OBJ_LIST, l);

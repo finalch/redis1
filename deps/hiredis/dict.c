@@ -251,6 +251,12 @@ static void dictRelease(dict *ht) {
     free(ht);
 }
 
+/**
+ * 从字典表中查找key
+ * @param ht 字典表
+ * @param key key
+ * @return key-value节点
+ */
 static dictEntry *dictFind(dict *ht, const void *key) {
     dictEntry *he;
     unsigned int h;

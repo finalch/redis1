@@ -199,6 +199,12 @@ robj *lookupKeyWriteOrReply(client *c, robj *key, robj *reply) {
  * counter of the value if needed.
  *
  * The program is aborted if the key already exists. */
+/**
+ * 向数据库中插入键值对
+ * @param db 数据库
+ * @param key key对象
+ * @param val value对象
+ */
 void dbAdd(redisDb *db, robj *key, robj *val) {
     sds copy = sdsdup(key->ptr);
     int retval = dictAdd(db->dict, copy, val);

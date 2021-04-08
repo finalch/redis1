@@ -88,7 +88,7 @@ void setGenericCommand(client *c, int flags, robj *key, robj *val, robj *expire,
         addReply(c, abort_reply ? abort_reply : shared.nullbulk);
         return;
     }
-    /** 更新key */
+    /** 在数据库中设置key-value */
     setKey(c->db, key, val);
     /** server 变化次数+1   -> serverCron()中RDB自动持久化机制 */
     server.dirty++;

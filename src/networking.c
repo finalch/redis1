@@ -167,6 +167,7 @@ client *createClient(int fd) {
     c->client_list_node = NULL;
     listSetFreeMethod(c->pubsub_patterns, decrRefCountVoid);
     listSetMatchMethod(c->pubsub_patterns, listMatchObjects);
+    /** 将client加入到客户端链表中 */
     if (fd != -1) linkClient(c);
     initClientMultiState(c);
     return c;
@@ -795,8 +796,13 @@ void acceptUnixHandler(aeEventLoop *el, int fd, void *privdata, int mask) {
     }
 }
 
+/**
+ * 释放客户端对象中的参数对象
+ * @param c 客户端对象
+ */
 static void freeClientArgv(client *c) {
     int j;
+    /** 每一个redisObject的引用计数器-1 */
     for (j = 0; j < c->argc; j++)
         decrRefCount(c->argv[j]);
     c->argc = 0;
@@ -1473,16 +1479,16 @@ void processInputBuffer(client *c) {
         /* Determine request type when unknown. */
         if (!c->reqtype) {
             if (c->querybuf[c->qb_pos] == '*') {
+                // redis-cli 协议类型
                 c->reqtype = PROTO_REQ_MULTIBULK;
             } else {
+                // telnet 类型协议
                 c->reqtype = PROTO_REQ_INLINE;
             }
         }
         /** 解析客户端发来的数据 --> 存入c->argc和c->argv*/
-        /** 一个key */
         if (c->reqtype == PROTO_REQ_INLINE) {
             if (processInlineBuffer(c) != C_OK) break;
-            /** 批量 多个key keys kk_* */
         } else if (c->reqtype == PROTO_REQ_MULTIBULK) {
             if (processMultibulkBuffer(c) != C_OK) break;
         } else {
@@ -1494,8 +1500,10 @@ void processInputBuffer(client *c) {
             resetClient(c);
         } else {
             /* Only reset the client when the command was executed. */
+            serverLog(LL_VERBOSE, "client flags before processCommand: %d", c->flags);
             /** 执行客户端的命令 */
             if (processCommand(c) == C_OK) {
+                serverLog(LL_VERBOSE, "client flags after processCommand: %d", c->flags);
                 if (c->flags & CLIENT_MASTER && !(c->flags & CLIENT_MULTI)) {
                     /* Update the applied replication offset of our master. */
                     c->reploff = c->read_reploff - sdslen(c->querybuf) + c->qb_pos;
@@ -1520,7 +1528,11 @@ void processInputBuffer(client *c) {
         sdsrange(c->querybuf, c->qb_pos, -1);
         c->qb_pos = 0;
     }
-
+    serverLog(LL_VERBOSE, "- key redisObject argc after processCommand: %d", c->argc);
+    if (c->argc > 1) {
+        serverLog(LL_VERBOSE, "- key redisObject ptr after processCommand: %s", c->argv[1]->ptr);
+        serverLog(LL_VERBOSE, "- key redisObject refcount after processCommand: %d", c->argv[1]->refcount);
+    }
     server.current_client = NULL;
 }
 
@@ -1604,6 +1616,8 @@ void readQueryFromClient(aeEventLoop *el, int fd, void *privdata, int mask) {
     if (c->flags & CLIENT_MASTER) c->read_reploff += nread;
     server.stat_net_input_bytes += nread;
     if (sdslen(c->querybuf) > server.client_max_querybuf_len) {
+        serverLog(LL_WARNING, "len of querybuf: %d", sdslen(c->querybuf));
+        serverLog(LL_WARNING, "max querybuf len: %d", server.client_max_querybuf_len);
         sds ci = catClientInfoString(sdsempty(), c), bytes = sdsempty();
 
         bytes = sdscatrepr(bytes, c->querybuf, 64);

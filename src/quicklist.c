@@ -93,7 +93,7 @@ static const size_t optimization_level[] = {4096, 8192, 16384, 32768, 65536};
  * Free with quicklistRelease(). */
 /**
  * 初始化一个快速链表
- * @return
+ * @return 快表
  */
 quicklist *quicklistCreate(void) {
     struct quicklist *quicklist;

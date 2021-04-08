@@ -606,6 +606,7 @@ dictType zsetDictType = {
 };
 
 /* Db->dict, keys are sds strings, vals are Redis objects. */
+/** 数据库中dict字典表的类型 */
 dictType dbDictType = {
         dictSdsHash,                /* hash function */
         NULL,                       /* key dup */
@@ -2875,7 +2876,14 @@ int processCommand(client *c) {
         queueMultiCommand(c);
         addReply(c, shared.queued);
     } else {
+        serverLog(LL_VERBOSE, "client flags before call: %d", c->flags);
         call(c, CMD_CALL_FULL);
+        serverLog(LL_VERBOSE, "client flags after call: %d", c->flags);
+        serverLog(LL_VERBOSE, "key redisObject argc after call: %d", c->argc);
+        if (c->argc > 1) {
+            serverLog(LL_VERBOSE, "key redisObject ptr after call: %s", c->argv[1]->ptr);
+            serverLog(LL_VERBOSE, "key redisObject refcount after call: %d", c->argv[1]->refcount);
+        }
         c->woff = server.master_repl_offset;
         if (listLength(server.ready_keys))
             handleClientsBlockedOnKeys();
